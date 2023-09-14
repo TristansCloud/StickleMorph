@@ -12,12 +12,12 @@ StickleMorph is a Streamlit web application that allows users to predict, visual
 Clone this repository:
 
 ```bash
-git clone https://github.com/username/StickleMorph.git
+git clone https://github.com/TristansCloud/StickleMorph.git
 cd StickleMorph
 ```
 Create and activate a virtual environment (optional, but recommended):
 ```bash
-conda create -n stmorph python=3.7
+conda create -y -n stmorph python=3.7
 conda activate stmorph
 ```
 Install the required packages using the requirements.txt file:
