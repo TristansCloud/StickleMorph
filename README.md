@@ -44,6 +44,6 @@ Open a web browser and visit the URL displayed in the terminal (usually http://l
 
 Upload an image using the file uploader, select a shape predictor model, and interact with the canvas to update landmark coordinates.
 
-A pretrained predictor and some example images are available at (this link.)[https://drive.google.com/drive/folders/1zZofiIedbJbsMdgw2adOPyJuSJWei7vH?usp=sharing] Place the predictor.dat file in the predictors folder.
+A pretrained predictor and some example images are available at [this link.](https://drive.google.com/drive/folders/1zZofiIedbJbsMdgw2adOPyJuSJWei7vH?usp=sharing) Place the predictor.dat file in the predictors folder.
 
 View and export the updated landmark coordinates as needed.
