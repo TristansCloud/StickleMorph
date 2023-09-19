@@ -81,8 +81,11 @@ selected_model = st.sidebar.selectbox("Choose a predictor model", options=predic
 st.sidebar.markdown("## Image Dimensions")
 maximum = st.sidebar.slider("Maximum width", min_value=200, max_value=2000, value=1000, step=50)
 
+st.sidebar.markdown("## Set scale")
+scale = st.sidebar.checkbox("Set image scale using two points", value=False)
+
 st.sidebar.markdown("## Edit Landmarks")
-edit = st.sidebar.radio("Choose:", options=["Locked", "Editable"], label_visibility="collapsed")
+edit = st.sidebar.radio("Choose:", options=["Editable", "Locked"], label_visibility="collapsed")
 cola, colb = st.sidebar.columns(2)
 
 submit = cola.button("Submit Edits")
@@ -98,7 +101,7 @@ landmark_color = cola.color_picker("Landmark: ", "#00ff00")
 stroke_color = colb.color_picker("Text: ", "#ffffff")
 
 # Main area
-uploaded_file = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"], key="image", on_change = clear_cache)
+uploaded_file = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"], key="image", on_change = clear_cache) #, accept_multiple_files=True
 
 if uploaded_file is not None:
     # Main area
@@ -127,7 +130,7 @@ if uploaded_file is not None:
 
         deviation = int(10*(1/ratio))
         for i, (x, y) in enumerate(landmarks):
-            image = cv2.circle(image, (x, y), int(7/ratio), PIL.ImageColor.getcolor(landmark_color,'RGB'), -1)
+            image = cv2.circle(image, (x, y), int(4/ratio), PIL.ImageColor.getcolor(landmark_color,'RGB'), -1)
             image = cv2.putText(image, str(i), (x+deviation, y+deviation*2), cv2.FONT_HERSHEY_SIMPLEX, 0.5/ratio, PIL.ImageColor.getcolor(stroke_color,'RGB'), int(0.8/ratio), cv2.LINE_AA)
         st.image(image, width=maximum, clamp=True)
         if clear:
@@ -175,7 +178,66 @@ if uploaded_file is not None:
             final_df['y'] = final_df['y'] + 5
             st.session_state.landmarks = [(int(x*1/ratio), int(y*1/ratio)) for x, y in final_df[['x', 'y']].values]
 
+    if scale:
+        number = st.sidebar.number_input("Length (mm)", 0, 2000, 10, 5)
+        drawing_mode = st.sidebar.selectbox("Drawing tool:", ["point"])
+        stroke_color = st.sidebar.color_picker("Stroke color hex: ", "#FF0000")
+
+        # canvas_result_scale = st_canvas(
+        #     background_image=PIL.Image.fromarray(image),
+        #     stroke_width=3,
+        #     stroke_color= stroke_color,
+        #     background_color="rgba(0, 0, 0, 0)",
+        #     update_streamlit=True,
+        #     height=image.shape[0],
+        #     width=image.shape[1],
+        #     drawing_mode=['transform'],
+        #     initial_drawing=landmarks_to_fabric(landmarks, landmark_color, stroke_color),
+        #     key="canvas_scale",
+        image = cv2.resize(image, (int(w*ratio), int(h*ratio)))
+        canvas_result_scale = st_canvas(
+            # fill_color="rgba(255, 165, 0, 0.3)",  # Fixed fill color with some opacity
+            stroke_width=3,
+            stroke_color=stroke_color,
+            background_image=PIL.Image.fromarray(image),
+            update_streamlit=False,
+            height=image.shape[0],
+            width=image.shape[1],
+            drawing_mode=drawing_mode,
+            key="canvas_scale",
+        )
+        if canvas_result_scale.json_data is not None:
+            objects = pd.json_normalize(canvas_result_scale.json_data["objects"])
+            for col in objects.select_dtypes(include=["object"]).columns:
+                objects[col] = objects[col].astype("str")
+            if objects.empty is False:
+                if len(objects.left) == 2:
+                    # ratio = w / 1500 if w > 1500 else 1
+                    length = (
+                        (
+                            (objects.left[0] - objects.left[1]) ** 2
+                            + (objects.top[0] - objects.top[1]) ** 2
+                        )
+                        ** 0.5
+                    ) * 1/ratio
+                    st.write(
+                        f"Success! Your scale is {int(length/number)} pixels per mm."
+                    )
+                    st.session_state.scale = int(length/number)
+                    # st.session_state.landmarks = [int(x/st.session_state.scale), int(y/st.session_state.scale) for x, y in st.session_state.landmarks['x', 'y']]
+                else:
+                    st.write(
+                        f"Please select only two points. Use backward arrow to delete points."
+                    )
+            else:
+                st.write(
+                    f"Please select two points: one at the beggining and one at the end of the scale. Then press the leftmost button to submit to the app."
+                )
+
     st.sidebar.markdown("## Download")
+
+    st.write(filter)
+    st.write(st.session_state)
 
     st.sidebar.download_button(
                 label="Download coordinates(CSV)",
