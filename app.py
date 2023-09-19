@@ -31,9 +31,9 @@ def format_labels(predictor):
     
 def download_csv(session, filter):
     """Download landmarks data as a CSV."""
-    if session['landmarks'] is False:
-        session['landmarks'] = session['initial']
-    df = pd.DataFrame(session['landmarks'], columns=['x', 'y'])
+    if session['scaled_landmarks'] is False:
+        session['scaled_landmarks'] = session['landmarks']
+    df = pd.DataFrame(session['scaled_landmarks'], columns=['x', 'y'])
     if filter:
         df = df.drop(index=filter)
     return df.to_csv(index=True).encode("utf-8")
@@ -44,17 +44,17 @@ def landmarks_to_fabric(landmarks, point_color, text_color):
     for i, (x, y) in enumerate(landmarks):
         circles_and_numbers.append({
             "type": "circle",
-            "left": x - 5,
-            "top": y - 5,
-            "radius": 5,
+            "left": x - 3,
+            "top": y - 3,
+            "radius": 3,
             "fill": point_color,
             "selectable": True,
         })
         circles_and_numbers.append({
             "type": "text",
             "text": str(i),
-            "left": x + 10,
-            "top": y + 10,
+            "left": x + 5,
+            "top": y + 3,
             "fontSize": 16,
             "fill": text_color,
             "selectable": False,
@@ -81,13 +81,14 @@ selected_model = st.sidebar.selectbox("Choose a predictor model", options=predic
 st.sidebar.markdown("## Image Dimensions")
 maximum = st.sidebar.slider("Maximum width", min_value=200, max_value=2000, value=1000, step=50)
 
-st.sidebar.markdown("## Set scale")
-scale = st.sidebar.checkbox("Set image scale using two points", value=False)
+# st.sidebar.markdown("## Set scale")
+# scale = st.sidebar.checkbox("Set image scale using two points", value=True)
+scale = True
 
 st.sidebar.markdown("## Edit Landmarks")
-edit = st.sidebar.radio("Choose:", options=["Editable", "Locked"], label_visibility="collapsed")
+# edit = st.sidebar.radio("Choose:", options=["Editable", "Locked"], label_visibility="collapsed")
+edit = "Editable"
 cola, colb = st.sidebar.columns(2)
-
 submit = cola.button("Submit Edits")
 clear = colb.button("Clear Edits")
 
@@ -120,131 +121,109 @@ if uploaded_file is not None:
     landmarks = [(point.x, point.y) for point in shape.parts()]
     landmarks = reorder_landmarks(landmarks)
     st.session_state.initial = landmarks.copy()
+    img_name = uploaded_file.name
+    img_name = img_name.split(".")
+    # if not scale:
+    #     st.write(f"This app requires a scalebar to be set.")
 
-    # Create a canvas to draw and update landmarks
-    if edit == 'Locked':
-        if clear:
-            st.session_state.landmarks = st.session_state.initial
-        if st.session_state.landmarks is not False:
-            landmarks = st.session_state.landmarks
-
-        deviation = int(10*(1/ratio))
-        for i, (x, y) in enumerate(landmarks):
-            image = cv2.circle(image, (x, y), int(4/ratio), PIL.ImageColor.getcolor(landmark_color,'RGB'), -1)
-            image = cv2.putText(image, str(i), (x+deviation, y+deviation*2), cv2.FONT_HERSHEY_SIMPLEX, 0.5/ratio, PIL.ImageColor.getcolor(stroke_color,'RGB'), int(0.8/ratio), cv2.LINE_AA)
-        st.image(image, width=maximum, clamp=True)
-        if clear:
-            st.session_state.landmarks = st.session_state.initial
-        
-    else:
-        if clear:
-            st.session_state.landmarks = st.session_state.initial
-        if st.session_state['landmarks'] is not False:
-            landmarks = st.session_state['landmarks']
-
-        
-        landmarks = [(int(x*ratio), int(y*ratio)) for x, y in landmarks]
-        image = cv2.resize(image, (int(w*ratio), int(h*ratio)))
-
-        canvas_result = st_canvas(
-            background_image=PIL.Image.fromarray(image),
-            stroke_width=3,
-            stroke_color= stroke_color,
-            background_color="rgba(0, 0, 0, 0)",
-            update_streamlit=True,
-            height=image.shape[0],
-            width=image.shape[1],
-            drawing_mode=['transform'],
-            initial_drawing=landmarks_to_fabric(landmarks, landmark_color, stroke_color),
-            key="canvas",
-        )
-
-        time.sleep(1)
-        objects = pd.json_normalize(canvas_result.json_data["objects"])
-
-        circles = objects[objects['type'] == 'circle']
-        texts = objects[objects['type'] == 'text']
-
-        # Get the text objects immediately below each circle object
-        circles.loc[:, 'landmark_id'] = texts['text'].values
-
-        # Create a new dataframe with the required columns
-        final_df = circles[['landmark_id', 'left', 'top']]
-        final_df.columns = ['landmark_id', 'x', 'y']
-        final_df.landmark_id = final_df.landmark_id.astype(int)
-
-        if submit:
-            final_df['x'] = final_df['x'] + 5
-            final_df['y'] = final_df['y'] + 5
-            st.session_state.landmarks = [(int(x*1/ratio), int(y*1/ratio)) for x, y in final_df[['x', 'y']].values]
-
-    if scale:
-        number = st.sidebar.number_input("Length (mm)", 0, 2000, 10, 5)
-        drawing_mode = st.sidebar.selectbox("Drawing tool:", ["point"])
-        stroke_color = st.sidebar.color_picker("Stroke color hex: ", "#FF0000")
-
-        # canvas_result_scale = st_canvas(
-        #     background_image=PIL.Image.fromarray(image),
-        #     stroke_width=3,
-        #     stroke_color= stroke_color,
-        #     background_color="rgba(0, 0, 0, 0)",
-        #     update_streamlit=True,
-        #     height=image.shape[0],
-        #     width=image.shape[1],
-        #     drawing_mode=['transform'],
-        #     initial_drawing=landmarks_to_fabric(landmarks, landmark_color, stroke_color),
-        #     key="canvas_scale",
-        image = cv2.resize(image, (int(w*ratio), int(h*ratio)))
-        canvas_result_scale = st_canvas(
-            # fill_color="rgba(255, 165, 0, 0.3)",  # Fixed fill color with some opacity
-            stroke_width=3,
-            stroke_color=stroke_color,
-            background_image=PIL.Image.fromarray(image),
-            update_streamlit=False,
-            height=image.shape[0],
-            width=image.shape[1],
-            drawing_mode=drawing_mode,
-            key="canvas_scale",
-        )
-        if canvas_result_scale.json_data is not None:
-            objects = pd.json_normalize(canvas_result_scale.json_data["objects"])
-            for col in objects.select_dtypes(include=["object"]).columns:
-                objects[col] = objects[col].astype("str")
-            if objects.empty is False:
-                if len(objects.left) == 2:
-                    # ratio = w / 1500 if w > 1500 else 1
-                    length = (
-                        (
-                            (objects.left[0] - objects.left[1]) ** 2
-                            + (objects.top[0] - objects.top[1]) ** 2
-                        )
-                        ** 0.5
-                    ) * 1/ratio
-                    st.write(
-                        f"Success! Your scale is {int(length/number)} pixels per mm."
+    # if scale:
+    number = st.sidebar.number_input("Length (mm)", 0, 2000, 15, 5)
+    drawing_mode = st.sidebar.selectbox("Drawing tool:", ["point"])
+    stroke_color = st.sidebar.color_picker("Stroke color hex: ", "#FF0000")
+    image = cv2.resize(image, (int(w*ratio), int(h*ratio)))
+    canvas_result_scale = st_canvas(
+        stroke_width=3,
+        stroke_color=stroke_color,
+        background_image=PIL.Image.fromarray(image),
+        update_streamlit=False,
+        height=image.shape[0],
+        width=image.shape[1],
+        drawing_mode=drawing_mode,
+        key="canvas_scale",
+    )
+    if canvas_result_scale.json_data is not None:
+        objects = pd.json_normalize(canvas_result_scale.json_data["objects"])
+        for col in objects.select_dtypes(include=["object"]).columns:
+            objects[col] = objects[col].astype("str")
+        if objects.empty is False:
+            if len(objects.left) == 2:
+                length = (
+                    (
+                        (objects.left[0] - objects.left[1]) ** 2
+                        + (objects.top[0] - objects.top[1]) ** 2
                     )
-                    st.session_state.scale = int(length/number)
-                    # st.session_state.landmarks = [int(x/st.session_state.scale), int(y/st.session_state.scale) for x, y in st.session_state.landmarks['x', 'y']]
-                else:
-                    st.write(
-                        f"Please select only two points. Use backward arrow to delete points."
-                    )
-            else:
+                    ** 0.5
+                ) * 1/ratio
+
+                scale_length = round(length/number, 2)
                 st.write(
-                    f"Please select two points: one at the beggining and one at the end of the scale. Then press the leftmost button to submit to the app."
+                    f"Success! Your scale is {scale_length} pixels per mm."
                 )
 
-    st.sidebar.markdown("## Download")
+                    # Create a canvas to draw and update landmarks
+                if edit == 'Locked':
 
-    st.write(filter)
-    st.write(st.session_state)
+                    st.write(f"Please enable editing landmarks.")
+                    
+                else:
+                    if clear:
+                        st.session_state.landmarks = st.session_state.initial
+                    if st.session_state['landmarks'] is not False:
+                        landmarks = st.session_state['landmarks']
 
-    st.sidebar.download_button(
-                label="Download coordinates(CSV)",
-                data=download_csv(st.session_state, filter),
-                file_name="landmarks.csv",
-                mime="text/csv",
-                use_container_width=True,
-    )
+                    
+                    landmarks = [(int(x*ratio), int(y*ratio)) for x, y in landmarks]
+                    image = cv2.resize(image, (int(w*ratio), int(h*ratio)))
+
+                    canvas_result = st_canvas(
+                        background_image=PIL.Image.fromarray(image),
+                        stroke_width=3,
+                        stroke_color= stroke_color,
+                        background_color="rgba(0, 0, 0, 0)",
+                        update_streamlit=True,
+                        height=image.shape[0],
+                        width=image.shape[1],
+                        drawing_mode=['transform'],
+                        initial_drawing=landmarks_to_fabric(landmarks, landmark_color, stroke_color),
+                        key="canvas",
+                    )
+
+                    # time.sleep(1)
+                    objects = pd.json_normalize(canvas_result.json_data["objects"])
+
+                    circles = objects[objects['type'] == 'circle']
+                    texts = objects[objects['type'] == 'text']
+
+                    # Get the text objects immediately below each circle object
+                    circles.loc[:, 'landmark_id'] = texts['text'].values
+
+                    # Create a new dataframe with the required columns
+                    final_df = circles[['landmark_id', 'left', 'top']]
+                    final_df.columns = ['landmark_id', 'x', 'y']
+                    final_df.landmark_id = final_df.landmark_id.astype(int)
+
+                    if submit:
+                        final_df['x'] = final_df['x']
+                        final_df['y'] = final_df['y']
+                    
+                    st.session_state.scaled_landmarks = [(round((x*1/ratio)/scale_length,5), round((y*1/ratio)/scale_length,5)) for x, y in final_df[['x', 'y']].values]
+                    st.sidebar.markdown("## Download")
+
+                    st.sidebar.download_button(
+                        label="Download coordinates(CSV)",
+                        data=download_csv(st.session_state, filter),
+                        file_name=img_name[0] + ".csv",
+                        mime="text/csv",
+                        use_container_width=True,
+                    )
+
+            else:
+                st.write(
+                    f"Please select only two points. Use backward arrow to delete points."
+                )
+        else:
+            st.write(
+                f"Please select two points: one at the beginning and one at the end of the scale. Then press the leftmost button to submit to the app."
+            )
 
 
