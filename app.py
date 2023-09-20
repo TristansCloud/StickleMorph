@@ -2,6 +2,7 @@ import cv2
 import dlib
 import glob
 import numpy as np
+import os
 import pandas as pd
 import PIL
 import streamlit as st
@@ -102,9 +103,20 @@ landmark_color = cola.color_picker("Landmark: ", "#00ff00")
 stroke_color = colb.color_picker("Text: ", "#ffffff")
 
 # Main area
-uploaded_file = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"], key="image", on_change = clear_cache) #, accept_multiple_files=True
+
+image_path = st.text_input("Path to images", value = "./images")
+st.sidebar.markdown("## Images")
+all_images = os.listdir(image_path)
+selected_image = st.sidebar.selectbox("Choose and image.", options = all_images, format_func=format_labels, on_change=clear_cache)
+
+uploaded_file = st.image(os.path.join(image_path, selected_image))
+# uploaded_file = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"], key="image", on_change = clear_cache) #, accept_multiple_files=True
 
 if uploaded_file is not None:
+    st.write(f"{uploaded_file}")
+    # img_name = uploaded_file.name
+    # img_name = img_name.split(".")
+
     # Main area
     if inner_width < maximum:
         maximum = inner_width
@@ -121,12 +133,7 @@ if uploaded_file is not None:
     landmarks = [(point.x, point.y) for point in shape.parts()]
     landmarks = reorder_landmarks(landmarks)
     st.session_state.initial = landmarks.copy()
-    img_name = uploaded_file.name
-    img_name = img_name.split(".")
-    # if not scale:
-    #     st.write(f"This app requires a scalebar to be set.")
 
-    # if scale:
     number = st.sidebar.number_input("Length (mm)", 0, 2000, 15, 5)
     drawing_mode = st.sidebar.selectbox("Drawing tool:", ["point"])
     stroke_color = st.sidebar.color_picker("Stroke color hex: ", "#FF0000")
@@ -212,11 +219,10 @@ if uploaded_file is not None:
                     st.sidebar.download_button(
                         label="Download coordinates(CSV)",
                         data=download_csv(st.session_state, filter),
-                        file_name=img_name[0] + ".csv",
+                        file_name= selected_image + ".csv",
                         mime="text/csv",
                         use_container_width=True,
                     )
-
             else:
                 st.write(
                     f"Please select only two points. Use backward arrow to delete points."
