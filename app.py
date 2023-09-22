@@ -86,10 +86,10 @@ maximum = st.sidebar.slider("Maximum width", min_value=200, max_value=2000, valu
 st.sidebar.markdown("## Filter Output")
 filter = st.sidebar.multiselect("Choose landmarks to remove from output", options=range(0, 68))
 
-# st.sidebar.markdown("## Color")
-# cola,colb = st.sidebar.columns(2)
-# landmark_color = cola.color_picker("Landmark: ", "#00ff00")
-# stroke_color = colb.color_picker("Text: ", "#ffffff")
+st.sidebar.markdown("## Color")
+cola,colb = st.sidebar.columns(2)
+landmark_color = cola.color_picker("Landmark: ", "#00ff00")
+stroke_color = colb.color_picker("Text: ", "#ffffff")
 
 image_path = st.sidebar.text_input("Path to images", value = ".\images")
 all_images = os.listdir(image_path)
