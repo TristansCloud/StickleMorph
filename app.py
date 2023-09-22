@@ -1,6 +1,7 @@
 import cv2
 import dlib
 import glob
+import io
 import numpy as np
 import os
 import pandas as pd
@@ -74,7 +75,7 @@ inner_width = st_javascript("""window.innerWidth""")
 predictors = glob.glob("predictors/*.dat")
 
 # Sidebar
-st.sidebar.image("resources/logo_v4.png", use_column_width=True)
+# st.sidebar.image("resources/logo_v4.png", use_column_width=True)
 
 st.sidebar.markdown("## Predictors")
 selected_model = st.sidebar.selectbox("Choose a predictor model", options=predictors, format_func=format_labels, on_change=clear_cache)
@@ -82,9 +83,28 @@ selected_model = st.sidebar.selectbox("Choose a predictor model", options=predic
 st.sidebar.markdown("## Image Dimensions")
 maximum = st.sidebar.slider("Maximum width", min_value=200, max_value=2000, value=1000, step=50)
 
-# st.sidebar.markdown("## Set scale")
-# scale = st.sidebar.checkbox("Set image scale using two points", value=True)
-scale = True
+st.sidebar.markdown("## Filter Output")
+filter = st.sidebar.multiselect("Choose landmarks to remove from output", options=range(0, 68))
+
+# st.sidebar.markdown("## Color")
+# cola,colb = st.sidebar.columns(2)
+# landmark_color = cola.color_picker("Landmark: ", "#00ff00")
+# stroke_color = colb.color_picker("Text: ", "#ffffff")
+
+image_path = st.sidebar.text_input("Path to images", value = ".\images")
+all_images = os.listdir(image_path)
+
+next = st.sidebar.button("Next image")
+if next:
+    number = None
+    if all_images.index(st.session_state["selected_image"]) == len(all_images) - 1:
+        i = 0
+    else:
+        i = all_images.index(st.session_state["selected_image"]) + 1
+    st.session_state["selected_image"] = all_images[i]
+
+st.sidebar.markdown("## Images")
+selected_image = st.sidebar.selectbox("Choose and image.", options = all_images, format_func=format_labels, on_change=clear_cache, key = "selected_image")
 
 st.sidebar.markdown("## Edit Landmarks")
 # edit = st.sidebar.radio("Choose:", options=["Editable", "Locked"], label_visibility="collapsed")
@@ -93,31 +113,14 @@ cola, colb = st.sidebar.columns(2)
 submit = cola.button("Submit Edits")
 clear = colb.button("Clear Edits")
 
-st.sidebar.markdown("## Filter Output")
-filter = st.sidebar.multiselect("Choose landmarks to remove from output", options=range(0, 68))
-
-
-st.sidebar.markdown("## Color")
-cola,colb = st.sidebar.columns(2)
-landmark_color = cola.color_picker("Landmark: ", "#00ff00")
-stroke_color = colb.color_picker("Text: ", "#ffffff")
-
-# Main area
-
-image_path = st.text_input("Path to images", value = "./images")
-st.sidebar.markdown("## Images")
-all_images = os.listdir(image_path)
-selected_image = st.sidebar.selectbox("Choose and image.", options = all_images, format_func=format_labels, on_change=clear_cache)
-
-uploaded_file = st.image(os.path.join(image_path, selected_image))
-# uploaded_file = st.file_uploader("Upload an image", type=["png", "jpg", "jpeg"], key="image", on_change = clear_cache) #, accept_multiple_files=True
+with open(os.path.join(image_path, selected_image), mode="rb") as f:
+    uploaded_file = f.read()
+    uploaded_file = io.BytesIO(uploaded_file)
 
 if uploaded_file is not None:
-    st.write(f"{uploaded_file}")
-    # img_name = uploaded_file.name
-    # img_name = img_name.split(".")
+    img_name = selected_image
+    img_name = img_name.split(".")
 
-    # Main area
     if inner_width < maximum:
         maximum = inner_width
 
@@ -135,18 +138,16 @@ if uploaded_file is not None:
     st.session_state.initial = landmarks.copy()
 
     number = st.sidebar.number_input("Length (mm)", 0, 2000, 15, 5)
-    drawing_mode = st.sidebar.selectbox("Drawing tool:", ["point"])
-    stroke_color = st.sidebar.color_picker("Stroke color hex: ", "#FF0000")
     image = cv2.resize(image, (int(w*ratio), int(h*ratio)))
     canvas_result_scale = st_canvas(
         stroke_width=3,
-        stroke_color=stroke_color,
+        stroke_color="#FF0000",
         background_image=PIL.Image.fromarray(image),
         update_streamlit=False,
         height=image.shape[0],
         width=image.shape[1],
-        drawing_mode=drawing_mode,
-        key="canvas_scale",
+        drawing_mode="point",
+        key="canvas_scale" + img_name[0],
     )
     if canvas_result_scale.json_data is not None:
         objects = pd.json_normalize(canvas_result_scale.json_data["objects"])
@@ -219,7 +220,7 @@ if uploaded_file is not None:
                     st.sidebar.download_button(
                         label="Download coordinates(CSV)",
                         data=download_csv(st.session_state, filter),
-                        file_name= selected_image + ".csv",
+                        file_name= img_name[0] + ".csv",
                         mime="text/csv",
                         use_container_width=True,
                     )
