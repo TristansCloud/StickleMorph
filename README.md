@@ -5,7 +5,7 @@ StickleMorph is a Streamlit web application that allows users to predict, visual
 ## Features
 - Upload images in PNG, JPG, or JPEG format.
 - Visualize and edit landmark coordinates on images using an interactive canvas.
-- Export landmark coordinates to a TPS file (not implemented yet)
+- Export landmark coordinates to a TPS file
 
 ## Notes
 - There is a [pretrained predictor and example images](https://drive.google.com/drive/folders/1xho5l4bL07By11o5lE6RD4I_IxUXtyRP?usp=sharing) available for download. Place the predictor.dat file in the predictors folder and the images in the images folder.
